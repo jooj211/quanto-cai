@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador · quanto cai na conta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ede8;
+    --muted: #8a857d;
+    --hint: #4a4640;
+    --accent: #c8f55a;
+    --accent-dim: rgba(200,245,90,0.12);
+    --accent-text: #0d1a00;
+    --warn: #f5b942;
+    --warn-dim: rgba(245,185,66,0.12);
+    --danger: #f55a5a;
+    --danger-dim: rgba(245,90,90,0.10);
+    --info: #5ab4f5;
+    --info-dim: rgba(90,180,245,0.10);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  html { background: var(--bg); }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  header {
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .badge-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .badge-live.loaded { color: var(--accent); }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .badge-live.loaded .dot {
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 4rem; }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 3rem;
+    max-width: 500px;
+  }
+
+  .controls-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+
+  @media(max-width: 600px) { .controls-box { grid-template-columns: 1fr; } }
+
+  .ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+
+  .ctrl-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .ctrl-row { display: flex; align-items: center; gap: 10px; }
+
+  input[type=number] {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    padding: 8px 12px;
+    outline: none;
+    width: 100%;
+    -moz-appearance: textfield;
+  }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type=number]:focus { border-color: var(--accent); }
+
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+
+  .ctrl-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+
+  @media(max-width: 500px) { .metrics-row { grid-template-columns: 1fr 1fr; } }
+
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.15rem;
+    color: var(--text);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    transition: border-color 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.15s;
+  }
+
+  .card.best { border-color: var(--accent); }
+  .card.best::before { background: var(--accent); }
+
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+
+  .tag-g { background: var(--accent-dim); color: var(--accent); }
+  .tag-b { background: var(--info-dim); color: var(--info); }
+  .tag-w { background: var(--warn-dim); color: var(--warn); }
+  .tag-d { background: var(--danger-dim); color: var(--danger); }
+  .tag-n { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+  .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .card-brl {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.6rem;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .card.best .card-brl { color: var(--accent); }
+
+  .card-rate {
+    font-size: 11px;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 10px;
+  }
+
+  .diff-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 99px;
+    margin-bottom: 12px;
+  }
+
+  .diff-best { background: var(--accent-dim); color: var(--accent); }
+  .diff-bad { background: var(--danger-dim); color: var(--danger); }
+
+  .fee-wrap {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+
+  .fee-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    padding: 3px 0;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .fee-row .fv { color: var(--text); }
+
+  .fee-row.total {
+    border-top: 1px solid var(--border2);
+    margin-top: 4px;
+    padding-top: 6px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .card-meta {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .meta-item {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .meta-item.pj { color: var(--warn); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    margin-top: 4rem;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .disc {
+    font-size: 11px;
+    color: var(--hint);
+    line-height: 1.7;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .disc a { color: var(--muted); text-decoration: none; }
+  .disc a:hover { color: var(--text); }
+
+  .card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 8px;
+    transition: color 0.1s;
+  }
+  .card-link:hover { color: var(--text); }
+  .card.best .card-link { color: var(--accent); opacity: 0.8; }
+  .card.best .card-link:hover { opacity: 1; }
+
+  .rank-num {
+    position: absolute;
+    top: 14px; right: 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--hint);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge-live" id="live-badge">
+    <span class="dot"></span>
+    <span id="live-text">carregando câmbio...</span>
+  </div>
+</header>
+
+<main>
+  <h1>Quanto cai na conta?</h1>
+  <p class="subtitle">Digite seu salário em dólar e veja o que cada plataforma deposita em reais.</p>
+
+  <div class="controls-box">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Valor em dólares (USD)</span>
+      <div class="ctrl-row">
+        <input type="number" min="1" step="1" value="1000" id="amt" oninput="update()" placeholder="ex: 1000">
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Câmbio comercial (USD/BRL)</span>
+      <div class="ctrl-row">
+        <input type="range" min="4.80" max="6.50" step="0.01" value="5.24" id="rate" oninput="update()">
+        <span class="ctrl-val" id="rate-out">R$ 5,24</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric">
+      <p class="metric-label">Câmbio hoje</p>
+      <p class="metric-value" id="m-rate">5,24</p>
+    </div>
+    <div class="metric">
+      <p class="metric-label">Bruto sem taxas</p>
+      <p class="metric-value" id="m-gross">R$ 6.288</p>
+    </div>
+    <div class="metric">
+      <p class="metric-label">Enviando</p>
+      <p class="metric-value" id="m-amt">$1.200</p>
+    </div>
+  </div>
+
+  <div class="grid" id="cards"></div>
+</main>
+
+<footer>
+  <p class="disc">
+    <span id="footer-rate">Câmbio comercial de referência: carregando...</span> Taxas pesquisadas nos sites oficiais de cada plataforma.<br>
+    TechFX e Husky exigem conta PJ (CNPJ). ARQ spread fixado em 1,5% (estimativa — pode variar; confirme no app antes de operar).<br>
+    Deel spread: ~1,5% acima do comercial + $15 fixo conforme relatos de usuários. Inter spread: ~1,25%.<br>
+    IOF zero para exportação de serviços (PJ). IOF 0,38% para PF. Simulação — confirme valores reais antes de operar.
+  </p>
+</footer>
+
+<script>
+const fmt = n => 'R$ ' + n.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const fmtU = n => '$' + n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+const providers = [
+  {
+    id: 'techfx',
+    name: 'TechFX',
+    url: 'https://www.techfx.com.br',
+    sub: 'Deel → TechFX → PJ',
+    tag: 'Menor custo', tagClass: 'tag-g',
+    pj: true, speed: '~1 dia útil',
+    calc: (amt, mid) => {
+      const fee = amt * 0.005;
+      const net = (amt - fee) * mid;
+      const fees = [
+        {l: 'Taxa', v: '0,5%'},
+        {l: 'Spread', v: 'Zero (câmbio comercial)'},
+        {l: 'IOF (PJ exportador)', v: '0%'},
+      ];
+      return { net, er: (amt - fee) / amt * mid, fees, cost: fee };
+    }
+  },
+  {
+    id: 'husky',
+    name: 'Husky / Nomad',
+    url: 'https://www.husky.io',
+    sub: 'Deel → Husky → PJ',
+    tag: 'Sem spread', tagClass: 'tag-g',
+    pj: true, speed: '~1 dia útil',
+    calc: (amt, mid) => {
+      const fee = amt >= 1000 ? amt * 0.01 : 10;
+      const net = (amt - fee) * mid;
+      const fees = [
+        {l: 'Taxa', v: amt >= 1000 ? '1% (>$1k)' : '$10 fixo'},
+        {l: 'Spread', v: 'Zero (câmbio comercial)'},
+        {l: 'IOF (PJ exportador)', v: '0%'},
+      ];
+      return { net, er: (amt - fee) / amt * mid, fees, cost: fee };
+    }
+  },
+  {
+    id: 'wise',
+    name: 'Wise',
+    url: 'https://wise.com/br',
+    sub: 'Deel → Wise → PIX',
+    tag: 'Mesmo dia', tagClass: 'tag-b',
+    pj: false, speed: 'Geralmente minutos',
+    calc: (amt, mid) => {
+      const fee = amt * 0.0091;
+      const net = (amt - fee) * mid;
+      const fees = [
+        {l: 'Taxa', v: '~0,91%'},
+        {l: 'Spread', v: 'Zero (mid-market)'},
+        {l: 'IOF', v: 'Incluso'},
+      ];
+      return { net, er: (1 - 0.0091) * mid, fees, cost: fee };
+    }
+  },
+  {
+    id: 'arq_promo',
+    name: 'ARQ (c/ promo Deel)',
+    url: 'https://www.dolarapp.com/en-BR/receive-from-deel',
+    sub: 'Deel → ARQ → PIX',
+    tag: 'Promo 1 ano grátis', tagClass: 'tag-b',
+    pj: false, speed: 'Instantâneo',
+    calc: (amt, mid) => {
+      const spread = 0.015;
+      const er = mid * (1 - spread);
+      const gross = amt * er;
+      const iof = gross * 0.0038;
+      const net = gross - iof;
+      const fees = [
+        {l: 'Transferência', v: 'R$ 0,00 (promo)'},
+        {l: 'Spread (est. 1,5%)', v: fmtU(amt * spread)},
+        {l: 'IOF (0,38%)', v: '-R$ ' + iof.toFixed(2)},
+      ];
+      return { net, er, fees, cost: amt * spread };
+    }
+  },
+  {
+    id: 'arq_normal',
+    name: 'ARQ (sem promo)',
+    url: 'https://www.arqfinance.com',
+    sub: 'Deel → ARQ → PIX',
+    tag: 'Após 12 meses', tagClass: 'tag-n',
+    pj: false, speed: 'Instantâneo',
+    calc: (amt, mid) => {
+      const spread = 0.015;
+      const er = mid * (1 - spread);
+      const gross = (amt - 3) * er;
+      const iof = gross * 0.0038;
+      const net = gross - iof;
+      const fees = [
+        {l: 'Transferência', v: '$3,00'},
+        {l: 'Spread (est. 1,5%)', v: fmtU(amt * spread)},
+        {l: 'IOF (0,38%)', v: '-R$ ' + iof.toFixed(2)},
+      ];
+      return { net, er, fees, cost: 3 + amt * spread };
+    }
+  },
+  {
+    id: 'inter',
+    name: 'Banco Inter',
+    url: 'https://inter.co/cambio/',
+    sub: 'PIX direto da Deel',
+    tag: 'Sem conta PJ', tagClass: 'tag-b',
+    pj: false, speed: '~2 dias úteis',
+    calc: (amt, mid) => {
+      const er = mid * (1 - 0.0125);
+      const gross = amt * er;
+      const iof = gross * 0.0038;
+      const net = gross - iof;
+      const fees = [
+        {l: 'Spread', v: '~1,25%'},
+        {l: 'Taxa de transferência', v: 'R$ 0 (>$500)'},
+        {l: 'IOF (0,38%)', v: '-R$ ' + iof.toFixed(2)},
+      ];
+      return { net, er, fees, cost: amt * 0.0125 };
+    }
+  },
+  {
+    id: 'deel_direto',
+    name: 'Deel direto (BRL)',
+    url: 'https://help.letsdeel.com/hc/en-gb/articles/8743763526929',
+    sub: 'Auto-withdraw em reais',
+    tag: 'Evitar', tagClass: 'tag-w',
+    pj: false, speed: 'Automático',
+    calc: (amt, mid) => {
+      const er = mid * (1 - 0.015);
+      const net = (amt - 15) * er;
+      const fees = [
+        {l: 'Taxa fixa', v: '$15,00'},
+        {l: 'Spread (~1,5%)', v: fmtU(amt * 0.015)},
+        {l: 'Câmbio abaixo do comercial', v: ''},
+      ];
+      return { net, er, fees, cost: 15 + amt * 0.015 };
+    }
+  },
+  {
+    id: 'banco_trad',
+    name: 'Banco tradicional',
+    url: null,
+    sub: 'Wire internacional SWIFT',
+    tag: 'Pior opção', tagClass: 'tag-d',
+    pj: false, speed: '2–5 dias úteis',
+    calc: (amt, mid) => {
+      const er = mid * (1 - 0.045);
+      const net = (amt - 35) * er;
+      const fees = [
+        {l: 'Wire fee', v: '$35,00'},
+        {l: 'Spread (~4,5%)', v: fmtU(amt * 0.045)},
+        {l: 'SWIFT + intermediários', v: 'possível extra'},
+      ];
+      return { net, er, fees, cost: 35 + amt * 0.045 };
+    }
+  },
+];
+
+function update() {
+  const raw = parseFloat(document.getElementById('amt').value);
+  const amt = (!raw || raw <= 0) ? 0 : raw;
+  const mid = parseFloat(document.getElementById('rate').value);
+
+  document.getElementById('rate-out').textContent = 'R$ ' + mid.toFixed(2).replace('.', ',');
+  document.getElementById('m-rate').textContent = mid.toFixed(2).replace('.', ',');
+  document.getElementById('m-gross').textContent = amt > 0 ? 'R$ ' + Math.round(amt * mid).toLocaleString('pt-BR') : '—';
+  document.getElementById('m-amt').textContent = amt > 0 ? '$' + amt.toLocaleString('pt-BR') : '—';
+
+  if (amt <= 0) { document.getElementById('cards').innerHTML = ''; return; }
+
+  const results = providers
+    .map(p => ({ ...p, r: p.calc(amt, mid) }))
+    .sort((a, b) => b.r.net - a.r.net);
+
+  const maxNet = results[0].r.net;
+  const container = document.getElementById('cards');
+  container.innerHTML = '';
+
+  results.forEach((p, i) => {
+    const isBest = i === 0;
+    const diff = p.r.net - maxNet;
+    const card = document.createElement('div');
+    card.className = 'card' + (isBest ? ' best' : '');
+
+    const diffHTML = isBest
+      ? `<span class="diff-pill diff-best">Melhor resultado</span>`
+      : `<span class="diff-pill diff-bad">-R$ ${Math.abs(diff).toFixed(0)} vs melhor</span>`;
+
+    const pjHTML = p.pj ? `<p class="meta-item pj">⚠ Exige conta PJ (CNPJ)</p>` : '';
+
+    const linkHTML = p.url
+      ? `<a class="card-link" href="${p.url}" target="_blank" rel="noopener">acessar plataforma ↗</a>`
+      : '';
+
+    card.innerHTML = `
+      <span class="rank-num">#${i + 1}</span>
+      <span class="tag ${p.tagClass}">${p.tag}</span>
+      <p class="card-name">${p.name}</p>
+      <p class="card-sub">${p.sub}</p>
+      <p class="card-brl">${fmt(p.r.net)}</p>
+      <p class="card-rate">câmbio efetivo: ${p.r.er.toFixed(4).replace('.', ',')}</p>
+      ${diffHTML}
+      <div class="fee-wrap">
+        ${p.r.fees.map(f => `<div class="fee-row"><span>${f.l}</span><span class="fv">${f.v}</span></div>`).join('')}
+        <div class="fee-row total"><span>Custo total (USD)</span><span>${fmtU(p.r.cost)}</span></div>
+      </div>
+      <div class="card-meta">
+        ${pjHTML}
+        <p class="meta-item">⏱ ${p.speed}</p>
+      </div>
+      ${linkHTML}
+    `;
+    container.appendChild(card);
+  });
+}
+
+async function fetchRate() {
+  try {
+    const res = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+    const data = await res.json();
+    const rate = parseFloat(data.USDBRL.bid);
+    if (!isNaN(rate)) {
+      const slider = document.getElementById('rate');
+      slider.value = Math.min(Math.max(rate, 4.80), 6.50);
+      update();
+      document.getElementById('live-text').textContent = 'USD/BRL · ' + rate.toFixed(4).replace('.', ',') + ' ao vivo';
+      document.getElementById('live-badge').classList.add('loaded');
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('footer-rate').textContent = `Câmbio comercial de referência: R$ ${rate.toFixed(4).replace('.', ',')} · ${dateStr} às ${timeStr}.`;
+    }
+  } catch {
+    document.getElementById('live-text').textContent = 'câmbio indisponível';
+    document.getElementById('footer-rate').textContent = 'Câmbio comercial de referência: indisponível — ajuste o slider manualmente.';
+  }
+}
+
+update();
+fetchRate();
+</script>
+</body>
+</html>
