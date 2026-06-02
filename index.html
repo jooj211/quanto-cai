@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head> 
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simulador · quanto cai na conta</title>
@@ -44,17 +44,85 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
   header {
-    padding: 1rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.85rem 2rem;
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    background: rgba(13,13,13,0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .badge-live #live-text { font-family: 'DM Mono', monospace; }
+  .badge-live .rate-big { color: var(--accent); font-weight: 500; }
+
+  .rate-mode {
+    display: inline-flex;
+    gap: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+  }
+  .rate-mode button {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .rate-mode button:hover { color: var(--text); }
+  .rate-mode button.active { background: var(--accent-dim); color: var(--accent); }
+
+  /* toggle compacto */
+  .rate-mode-sm { padding: 2px; gap: 2px; }
+  .rate-mode-sm button { font-size: 10px; padding: 3px 7px; border-radius: 5px; }
+
+  /* métrica "Câmbio hoje" editável no modo manual */
+  .metric-rate-input {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.15rem;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    padding: 0 0 1px;
+    width: 100%;
+    outline: none;
+    -moz-appearance: textfield;
+  }
+  .metric-rate-input::-webkit-inner-spin-button,
+  .metric-rate-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .metric-rate.editable { border-color: var(--accent); }
+  .metric-rate.editable .metric-label::after { content: ' · editável'; color: var(--accent); }
+  .metric-rate.editable .metric-rate-input {
+    color: var(--accent);
+    border-bottom-color: var(--border2);
+    cursor: text;
+  }
+  .metric-rate.editable .metric-rate-input:focus { border-bottom-color: var(--accent); }
+
+  input[type=number][readonly] {
+    color: var(--muted);
+    cursor: not-allowed;
+    border-color: var(--border);
+    background: var(--surface2);
   }
 
   .badge-live {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--muted);
     font-family: 'DM Mono', monospace;
   }
@@ -73,7 +141,7 @@
     animation: pulse 2s infinite;
   }
 
-  main { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 4rem; }
+  main { max-width: 1240px; margin: 0 auto; padding: 3rem 2rem 4rem; }
 
   h1 {
     font-size: clamp(2rem, 5vw, 3.5rem);
@@ -109,6 +177,14 @@
   @media(max-width: 600px) { .controls-box { grid-template-columns: 1fr; } }
 
   .ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+
+  .ctrl-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
 
   .ctrl-label {
     font-size: 11px;
@@ -158,10 +234,13 @@
   .ctrl-val {
     font-family: 'DM Mono', monospace;
     font-size: 13px;
-    color: var(--text);
+    color: var(--muted);
     min-width: 80px;
     text-align: right;
   }
+
+  .ctrl-val.live { color: var(--accent); }
+  .ctrl-val.stale { color: var(--warn); }
 
   .metrics-row {
     display: grid;
@@ -196,7 +275,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 12px;
   }
 
@@ -324,7 +403,7 @@
     border-top: 1px solid var(--border);
     padding: 1.5rem 2rem;
     margin-top: 4rem;
-    max-width: 1100px;
+    max-width: 1240px;
     margin-left: auto;
     margin-right: auto;
   }
@@ -361,6 +440,224 @@
     font-size: 11px;
     color: var(--hint);
   }
+
+  /* ---- impostos ---- */
+  .results {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .tax-aside {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-left: 1px solid var(--border);
+    padding-left: 1.5rem;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  @media(max-width: 860px) {
+    .results { grid-template-columns: 1fr; }
+    .tax-aside {
+      position: static; max-height: none; overflow: visible;
+      border-left: none; padding-left: 0;
+      border-top: 1px solid var(--border); padding-top: 1.5rem;
+    }
+  }
+
+  /* painel lateral — não é card: sem borda/fundo próprios */
+  .tax-bar { overflow: visible; }
+
+  .tax-bar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 0 0 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .tax-bar-head .switch { cursor: pointer; }
+  .tax-bar-hint {
+    font-size: 11px;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+  }
+  .tax-bar.open .tax-bar-hint { color: var(--accent); }
+
+  .tax-config {
+    display: none;
+    padding: 14px 0 0;
+    flex-direction: column;
+    gap: 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    min-width: 0;
+  }
+  .tax-bar.open .tax-config { display: flex; }
+
+  .tax-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  /* utilitário robusto: vence display:flex/grid de qualquer classe */
+  .hide { display: none !important; }
+
+  .seg { display: flex; flex-direction: column; gap: 6px; }
+  .seg button {
+    width: 100%;
+    text-align: left;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 99px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .chip:hover { color: var(--text); }
+  .chip.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 0;
+    line-height: 1.3;
+  }
+  .switch > span { min-width: 0; overflow-wrap: break-word; }
+  .switch input {
+    width: 38px; height: 20px;
+    -webkit-appearance: none; appearance: none;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 99px;
+    position: relative;
+    cursor: pointer;
+    transition: 0.15s;
+    flex-shrink: 0;
+  }
+  .switch input::after {
+    content: '';
+    position: absolute;
+    top: 1px; left: 1px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: 0.15s;
+  }
+  .switch input:checked { background: var(--accent-dim); border-color: var(--accent); }
+  .switch input:checked::after { left: 19px; background: var(--accent); }
+
+  .tax-note {
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--info);
+    font-family: 'DM Mono', monospace;
+    background: var(--info-dim);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+  .tax-note.warn { background: var(--warn-dim); color: var(--warn); }
+  .tax-note.danger { background: var(--danger-dim); color: var(--danger); }
+
+  .tax-disclaimer {
+    font-size: 10px;
+    line-height: 1.7;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  /* resultado de imposto dentro do card */
+  .net-box {
+    margin-top: 10px;
+    border-top: 1px solid var(--border2);
+    padding-top: 10px;
+  }
+  .net-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .net-head .net-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .net-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .net-sub {
+    font-size: 10px;
+    color: var(--hint);
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
+  }
+  .net-detail-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 6px 0 0;
+    cursor: pointer;
+    transition: color 0.1s;
+  }
+  .net-detail-btn:hover { color: var(--text); }
+
+  .tax-breakdown {
+    margin-top: 8px;
+    border-top: 1px dashed var(--border2);
+    padding-top: 8px;
+  }
+  .tax-breakdown .fee-row .fv.neg { color: var(--danger); }
+  .tax-info {
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--info);
+    font-family: 'DM Mono', monospace;
+    padding: 6px 0;
+  }
 </style>
 </head>
 <body>
@@ -380,22 +677,25 @@
     <div class="ctrl-group">
       <span class="ctrl-label">Valor em dólares (USD)</span>
       <div class="ctrl-row">
-        <input type="number" min="1" step="1" value="1000" id="amt" oninput="update()" placeholder="ex: 1000">
+        <input type="number" min="1" step="1" id="amt" oninput="onAmtInput(this.value)" placeholder="ex: 1000">
       </div>
     </div>
     <div class="ctrl-group">
-      <span class="ctrl-label">Câmbio comercial (USD/BRL)</span>
-      <div class="ctrl-row">
-        <input type="range" min="4.80" max="6.50" step="0.01" value="5.24" id="rate" oninput="update()">
-        <span class="ctrl-val" id="rate-out">R$ 5,24</span>
+      <div class="ctrl-label-row">
+        <span class="ctrl-label">Câmbio (USD/BRL)</span>
+        <div class="rate-mode rate-mode-sm" id="rate-mode">
+          <button data-m="live" onclick="setRateMode('live')">ao vivo</button>
+          <button data-m="manual" onclick="setRateMode('manual')">manual</button>
+        </div>
       </div>
+      <span class="ctrl-val" id="rate-status">—</span>
     </div>
   </div>
 
   <div class="metrics-row">
-    <div class="metric">
+    <div class="metric metric-rate" id="metric-rate">
       <p class="metric-label">Câmbio hoje</p>
-      <p class="metric-value" id="m-rate">5,24</p>
+      <input class="metric-rate-input" id="m-rate" type="number" min="0" step="0.01" readonly oninput="onRateInput(this.value)">
     </div>
     <div class="metric">
       <p class="metric-label">Bruto sem taxas</p>
@@ -407,13 +707,94 @@
     </div>
   </div>
 
+  <div class="results">
   <div class="grid" id="cards"></div>
+  <aside class="tax-aside">
+  <div class="tax-bar" id="tax-bar">
+    <label class="tax-bar-head" id="tax-bar-head">
+      <span class="switch">
+        <input type="checkbox" id="tax-on" onchange="toggleTaxOn(this.checked)">
+        <span>💸 Calcular líquido após impostos</span>
+      </span>
+      <span class="tax-bar-hint" id="tax-bar-hint">simulação fiscal · opcional</span>
+    </label>
+
+    <div class="tax-config" id="tax-config">
+
+      <div class="tax-field">
+        <span class="ctrl-label">Tipo de recebimento</span>
+        <div class="seg" id="seg-regime">
+          <button data-r="pf" onclick="setRegime('pf')">Pessoa Física</button>
+          <button data-r="mei" onclick="setRegime('mei')">PJ · MEI</button>
+          <button data-r="simples" onclick="setRegime('simples')">Simples / ME</button>
+        </div>
+      </div>
+
+      <div class="tax-field" id="aliq-field">
+        <span class="ctrl-label" id="aliq-label">Imposto a descontar (%)</span>
+        <div class="ctrl-row">
+          <input type="number" min="0" max="100" step="0.5" id="tax-aliq" oninput="setAliq(this.value)" placeholder="ex: 6">
+        </div>
+        <div class="chips hide" id="aliq-chips">
+          <button class="chip" onclick="setAliqChip(6)">6%</button>
+          <button class="chip" onclick="setAliqChip(10)">10%</button>
+          <button class="chip" onclick="setAliqChip(12)">12%</button>
+          <button class="chip" onclick="setAliqChip(15)">15%</button>
+        </div>
+      </div>
+
+      <div class="tax-field hide" id="das-field">
+        <span class="ctrl-label">DAS-MEI fixo mensal (R$)</span>
+        <div class="ctrl-row">
+          <input type="number" min="0" step="1" id="tax-das" oninput="setDas(this.value)" placeholder="ex: 86,05">
+        </div>
+        <div class="chips">
+          <button class="chip" onclick="setDasChip(86.05)">Serviços R$ 86,05</button>
+          <button class="chip" onclick="setDasChip(82.05)">Comércio R$ 82,05</button>
+        </div>
+      </div>
+
+      <div class="tax-note hide" id="pf-note">IR via <strong>carnê-leão</strong>: tabela progressiva mensal 2026 sobre o bruto convertido (USD × câmbio). Isento até R$ 5.000/mês; redução até R$ 7.350; depois sobe até 27,5%. Exportação de serviços tem <strong>IOF 0%</strong>. Estimativa — sem deduções/dependentes; confirme com seu contador.</div>
+      <div class="tax-field hide" id="pf-options">
+        <label class="switch">
+          <input type="checkbox" id="tax-pf-iof" onchange="togglePfIof(this.checked)">
+          <span>Aplicar IOF 0,38% (recurso ficou parado em conta no exterior)</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="tax-pf-manual" onchange="togglePfManual(this.checked)">
+          <span>Informar alíquota efetiva manual (em vez do cálculo automático)</span>
+        </label>
+      </div>
+      <div class="tax-note warn hide" id="mei-note">MEI paga DAS <strong>fixo mensal</strong> (não percentual) — ~R$ 86 (serviços) em 2026. Teto de R$ 81 mil/ano (~R$ 6.750/mês); exportação de serviço pode não se enquadrar no MEI. Sem Fator R nem pró-labore. Confirme com seu contador.</div>
+      <div class="tax-note danger hide" id="mei-cap-alert"></div>
+
+      <div class="tax-field hide" id="fatorr-field">
+        <label class="switch">
+          <input type="checkbox" id="tax-fatorr" onchange="toggleFatorR(this.checked)">
+          <span>Usar Fator R</span>
+        </label>
+        <div class="hide" id="folha-wrap">
+          <span class="ctrl-label">Qual % da receita vai para pró-labore/folha?</span>
+          <div class="ctrl-row">
+            <input type="range" min="0" max="60" step="1" id="tax-folha" oninput="setFolha(this.value)">
+            <span class="ctrl-val" id="folha-out">28%</span>
+          </div>
+          <div class="tax-note" id="fatorr-note"></div>
+        </div>
+      </div>
+
+      <p class="tax-disclaimer">Esta é uma simulação estimada. Os valores podem variar conforme plataforma, câmbio, regime tributário, CNAE, faturamento anual e orientação contábil. Consulte seu contador antes de tomar decisões fiscais.</p>
+    </div>
+  </div>
+  </aside>
+  </div>
 </main>
 
 <footer>
   <p class="disc">
     <span id="footer-rate">Câmbio comercial de referência: carregando...</span> Taxas pesquisadas nos sites oficiais de cada plataforma.<br>
-    TechFX e Husky exigem conta PJ (CNPJ). ARQ spread fixado em 1,5% (estimativa — pode variar; confirme no app antes de operar).<br>
+    Higlobe usa $0 de taxa + 0,3% de spread para BRL, sem IOF ou taxa extra segundo páginas oficiais; fora do horário bancário local, o câmbio pode variar. TechFX e Husky exigem conta PJ (CNPJ).<br>
+    ARQ spread fixado em 1,5% (estimativa — pode variar; confirme no app antes de operar).<br>
     Deel spread: ~1,5% acima do comercial + $15 fixo conforme relatos de usuários. Inter spread: ~1,25%.<br>
     IOF zero para exportação de serviços (PJ). IOF 0,38% para PF. Simulação — confirme valores reais antes de operar.
   </p>
@@ -425,11 +806,30 @@ const fmtU = n => '$' + n.toLocaleString('en-US', {minimumFractionDigits: 2, max
 
 const providers = [
   {
+    id: 'higlobe',
+    name: 'Higlobe',
+    url: 'https://www.higlobe.com/pt-br/pricing',
+    sub: 'Deel → Higlobe ACH → PIX',
+    tag: 'Spread 0,3%', tagClass: 'tag-g',
+    pj: false, speed: 'PIX instantâneo',
+    calc: (amt, mid) => {
+      const spread = 0.003;
+      const er = mid * (1 - spread);
+      const net = amt * er;
+      const fees = [
+        {l: 'Entrada ACH', v: '$0,00'},
+        {l: 'Spread BRL', v: '0,3%'},
+        {l: 'IOF / taxa extra', v: '0%'},
+      ];
+      return { net, er, fees, cost: amt * spread };
+    }
+  },
+  {
     id: 'techfx',
     name: 'TechFX',
     url: 'https://www.techfx.com.br',
     sub: 'Deel → TechFX → PJ',
-    tag: 'Menor custo', tagClass: 'tag-g',
+    tag: 'Taxa 0,5%', tagClass: 'tag-g',
     pj: true, speed: '~1 dia útil',
     calc: (amt, mid) => {
       const fee = amt * 0.005;
@@ -578,13 +978,80 @@ const providers = [
   },
 ];
 
+/* ---------- preferências + câmbio ---------- */
+const PREFS_KEY = 'qc_prefs_v1';
+let prefs = { amount: 1000, rateMode: 'live', manualRate: null };
+let liveRate = 5.24;   // fallback até o primeiro fetch
+let lastRateTime = null;
+
+function loadPrefs() {
+  try { const s = JSON.parse(localStorage.getItem(PREFS_KEY)); if (s) Object.assign(prefs, s); } catch {}
+}
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch {}
+}
+
+function getRate() {
+  if (prefs.rateMode === 'manual') {
+    const r = parseFloat(prefs.manualRate);
+    return (!isNaN(r) && r > 0) ? r : liveRate;
+  }
+  return liveRate;
+}
+
+function onAmtInput(v) {
+  const n = parseFloat(v);
+  prefs.amount = (!isNaN(n) && n > 0) ? n : null;
+  savePrefs();
+  update();
+}
+
+function onRateInput(v) {
+  if (prefs.rateMode !== 'manual') return;
+  const n = parseFloat(v);
+  prefs.manualRate = (!isNaN(n) && n > 0) ? n : null;
+  savePrefs();
+  update();
+}
+
+function setRateMode(m) {
+  prefs.rateMode = m;
+  if (m === 'manual' && prefs.manualRate == null) prefs.manualRate = getRate();
+  savePrefs();
+  syncRateUI();
+  update();
+  if (m === 'manual') { const el = document.getElementById('m-rate'); el.focus(); el.select(); }
+}
+
+function syncRateUI() {
+  const manual = prefs.rateMode === 'manual';
+  document.querySelectorAll('#rate-mode button').forEach(b =>
+    b.classList.toggle('active', b.dataset.m === prefs.rateMode));
+  const input = document.getElementById('m-rate');
+  input.readOnly = !manual;
+  input.value = (manual ? (prefs.manualRate ?? getRate()) : liveRate).toFixed(2);
+  document.getElementById('metric-rate').classList.toggle('editable', manual);
+  const status = document.getElementById('rate-status');
+  if (manual) {
+    status.textContent = 'manual · seu valor';
+    status.classList.remove('live', 'stale');
+  } else {
+    const hhmm = lastRateTime ? lastRateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
+    status.textContent = `ao vivo · ${hhmm}`;
+    status.classList.add('live');
+    status.classList.remove('stale');
+  }
+}
+
 function update() {
   const raw = parseFloat(document.getElementById('amt').value);
   const amt = (!raw || raw <= 0) ? 0 : raw;
-  const mid = parseFloat(document.getElementById('rate').value);
+  const mid = getRate();
+  monthlyGrossBRL = amt * mid;
 
-  document.getElementById('rate-out').textContent = 'R$ ' + mid.toFixed(2).replace('.', ',');
-  document.getElementById('m-rate').textContent = mid.toFixed(2).replace('.', ',');
+  updateMeiAlert(amt, mid);
+
+  if (prefs.rateMode !== 'manual') document.getElementById('m-rate').value = mid.toFixed(2);
   document.getElementById('m-gross').textContent = amt > 0 ? 'R$ ' + Math.round(amt * mid).toLocaleString('pt-BR') : '—';
   document.getElementById('m-amt').textContent = amt > 0 ? '$' + amt.toLocaleString('pt-BR') : '—';
 
@@ -631,6 +1098,7 @@ function update() {
         <p class="meta-item">⏱ ${p.speed}</p>
       </div>
       ${linkHTML}
+      ${tax.on ? renderNetBox(p.id, p.r.net) : ''}
     `;
     container.appendChild(card);
   });
@@ -641,25 +1109,240 @@ async function fetchRate() {
     const res = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
     const data = await res.json();
     const rate = parseFloat(data.USDBRL.bid);
-    if (!isNaN(rate)) {
-      const slider = document.getElementById('rate');
-      slider.value = Math.min(Math.max(rate, 4.80), 6.50);
-      update();
-      document.getElementById('live-text').textContent = 'USD/BRL · ' + rate.toFixed(4).replace('.', ',') + ' ao vivo';
-      document.getElementById('live-badge').classList.add('loaded');
+    if (!isNaN(rate) && rate > 0) {
+      liveRate = rate;
       const now = new Date();
-      const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+      lastRateTime = now;
       const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('live-text').innerHTML =
+        `USD/BRL · <span class="rate-big">R$ ${rate.toFixed(2).replace('.', ',')}</span> · ${timeStr}`;
+      document.getElementById('live-badge').classList.add('loaded');
+      const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
       document.getElementById('footer-rate').textContent = `Câmbio comercial de referência: R$ ${rate.toFixed(4).replace('.', ',')} · ${dateStr} às ${timeStr}.`;
+      if (prefs.rateMode === 'live') { syncRateUI(); update(); }
     }
   } catch {
     document.getElementById('live-text').textContent = 'câmbio indisponível';
-    document.getElementById('footer-rate').textContent = 'Câmbio comercial de referência: indisponível — ajuste o slider manualmente.';
+    document.getElementById('footer-rate').textContent = 'Câmbio comercial de referência: indisponível — use o modo manual.';
+    const status = document.getElementById('rate-status');
+    status.textContent = 'indisponível';
+    status.classList.remove('live');
+    status.classList.add('stale');
   }
 }
 
+/* ---------- impostos ---------- */
+const TAX_KEY = 'qc_tax_v2';
+let tax = {
+  on: false,
+  regime: 'pf',        // pf | mei | simples
+  aliquota: 0,
+  pfIof: false,        // PF: IOF 0,38% (caso de borda; exportação de serviço = 0%)
+  pfManual: false,     // PF: informar alíquota efetiva manual em vez do carnê-leão auto
+  dasMensal: 86.05,    // DAS-MEI fixo (serviços, 2026)
+  fatorR: false,
+  folhaPct: 28,
+};
+
+// Simples: 1ª faixa nominal — Anexo III (com Fator R) vs Anexo V (sem)
+const ANEXO_III = 6;
+const ANEXO_V = 15.5;
+const openTax = new Set();   // ids com cálculo detalhado aberto
+let monthlyGrossBRL = 0;     // bruto mensal (USD × câmbio), base do carnê-leão PF
+
+// IR mensal PF — tabela progressiva 2026 + redutor Lei 15.270/2025 (carnê-leão)
+function pfIncomeTax(gross) {
+  if (!(gross > 0)) return 0;
+  let t;
+  if (gross <= 2428.80) t = 0;
+  else if (gross <= 2826.65) t = gross * 0.075 - 182.16;
+  else if (gross <= 3751.05) t = gross * 0.15 - 394.16;
+  else if (gross <= 4664.68) t = gross * 0.225 - 675.49;
+  else t = gross * 0.275 - 908.73;
+  t = Math.max(0, t);
+  if (gross <= 5000) return 0;                       // isento até R$ 5.000/mês
+  if (gross <= 7350) {                               // redução decrescente
+    const redutor = Math.max(0, 978.62 - 0.133145 * gross);
+    return Math.max(0, t - redutor);
+  }
+  return t;                                          // > R$ 7.350 → tabela cheia
+}
+
+function loadTax() {
+  try { const s = JSON.parse(localStorage.getItem(TAX_KEY)); if (s) Object.assign(tax, s); } catch {}
+}
+function saveTax() {
+  try { localStorage.setItem(TAX_KEY, JSON.stringify(tax)); } catch {}
+}
+
+function regimeLabel() {
+  return tax.regime === 'pf' ? 'Pessoa Física' : tax.regime === 'mei' ? 'PJ · MEI' : 'Simples / ME';
+}
+
+const MEI_CAP_MENSAL = 6750;  // R$ 81.000/ano ÷ 12
+
+function updateMeiAlert(amt, mid) {
+  const el = document.getElementById('mei-cap-alert');
+  if (!el) return;
+  const gross = amt * mid;
+  const show = tax.on && tax.regime === 'mei' && gross > MEI_CAP_MENSAL;
+  el.classList.toggle('hide', !show);
+  if (show) {
+    el.innerHTML = `⚠ Bruto mensal estimado <strong>${fmt(gross)}</strong> ultrapassa o teto do MEI ` +
+      `(R$ 6.750/mês · R$ 81 mil/ano). O enquadramento correto costuma ser ` +
+      `<strong>Simples Nacional / ME</strong>, não MEI.`;
+  }
+}
+
+function computeTax(base) {
+  const rows = [];
+  rows.push({ l: 'Bruto convertido (após taxas)', v: fmt(base) });
+  let liquido = base;
+
+  if (tax.regime === 'pf') {
+    // IOF: exportação de serviços = 0%; 0,38% só no caso de borda (recurso parado no exterior)
+    if (tax.pfIof) {
+      const iof = base * 0.0038;
+      liquido -= iof;
+      rows.push({ l: 'IOF (0,38%)', v: '-' + fmt(iof), neg: true });
+    }
+    // IR: carnê-leão sobre o BRUTO mensal (USD × câmbio), não sobre o líquido da plataforma
+    let imp, irLabel;
+    if (tax.pfManual) {
+      imp = monthlyGrossBRL * (tax.aliquota || 0) / 100;
+      irLabel = `IR (efetiva ${(tax.aliquota || 0).toLocaleString('pt-BR')}% · manual)`;
+    } else {
+      imp = pfIncomeTax(monthlyGrossBRL);
+      const efe = monthlyGrossBRL > 0 ? imp / monthlyGrossBRL * 100 : 0;
+      rows.push({ info: `Carnê-leão sobre o bruto mensal ${fmt(monthlyGrossBRL)} (tabela progressiva 2026). Estimativa — sem deduções/dependentes.` });
+      irLabel = `IR (${efe.toFixed(1).replace('.', ',')}% efetiva)`;
+    }
+    liquido -= imp;
+    rows.push({ l: irLabel, v: '-' + fmt(imp), neg: true });
+  }
+  else if (tax.regime === 'mei') {
+    const das = tax.dasMensal || 0;
+    liquido -= das;
+    rows.push({ l: 'DAS-MEI (fixo mensal)', v: '-' + fmt(das), neg: true });
+    rows.push({ info: 'O DAS é fixo por mês, não percentual — descontado uma vez aqui. MEI não tem Fator R nem pró-labore.' });
+  }
+  else { // simples / ME
+    const imp = base * (tax.aliquota || 0) / 100;
+    liquido -= imp;
+    rows.push({ l: `Imposto Simples (${(tax.aliquota || 0).toLocaleString('pt-BR')}%)`, v: '-' + fmt(imp), neg: true });
+
+    if (tax.fatorR) {
+      const elig = (tax.folhaPct || 0) >= 28;
+      rows.push({ info: elig
+        ? `Fator R: folha ${tax.folhaPct}% ≥ 28% → Anexo III, alíquota ajustada p/ ${ANEXO_III}%.`
+        : `Fator R: folha ${tax.folhaPct}% < 28% → Anexo V, alíquota ajustada p/ ${ANEXO_V.toLocaleString('pt-BR')}%.` });
+    }
+  }
+
+  const pct = base > 0 ? (base - liquido) / base * 100 : 0;
+  return { rows, liquido, pct };
+}
+
+function renderNetBox(id, base) {
+  const t = computeTax(base);
+  const open = openTax.has(id);
+  const label = 'Líquido após impostos';
+  return `<div class="net-box">
+      <div class="net-head">
+        <span class="net-label">${label}</span>
+        <span class="net-val">${fmt(t.liquido)}</span>
+      </div>
+      <p class="net-sub">${regimeLabel()} · −${t.pct.toFixed(1).replace('.', ',')}% sobre o convertido</p>
+      <button class="net-detail-btn" onclick="toggleDetail('${id}')">${open ? '▴ ocultar cálculo' : '▾ ver cálculo'}</button>
+      ${open ? renderBreakdown(t) : ''}
+    </div>`;
+}
+
+function renderBreakdown(t) {
+  const rowsHTML = t.rows.map(r => r.info
+    ? `<div class="tax-info">${r.info}</div>`
+    : `<div class="fee-row"><span>${r.l}</span><span class="fv${r.neg ? ' neg' : ''}">${r.v}</span></div>`
+  ).join('');
+  return `<div class="tax-breakdown">${rowsHTML}
+      <div class="fee-row total"><span>Total descontado</span><span class="fv">${t.pct.toFixed(1).replace('.', ',')}%</span></div>
+    </div>`;
+}
+
+function toggleDetail(id) {
+  if (openTax.has(id)) openTax.delete(id); else openTax.add(id);
+  update();
+}
+
+function refreshChips() {
+  document.querySelectorAll('#aliq-chips .chip').forEach(c =>
+    c.classList.toggle('active', parseFloat(c.textContent) === Number(tax.aliquota)));
+}
+
+function syncTaxUI() {
+  document.getElementById('tax-bar').classList.toggle('open', tax.on);
+  document.getElementById('tax-on').checked = tax.on;
+  document.getElementById('tax-bar-hint').textContent = tax.on ? 'ativo · aplicado a todas as plataformas' : 'simulação fiscal · opcional';
+
+  document.querySelectorAll('#seg-regime button').forEach(b =>
+    b.classList.toggle('active', b.dataset.r === tax.regime));
+
+  const isPF = tax.regime === 'pf';
+  const isMEI = tax.regime === 'mei';
+  const isSimples = tax.regime === 'simples';
+
+  document.getElementById('aliq-label').textContent = isPF ? 'Alíquota efetiva de IR (%)' : 'Alíquota do Simples (%)';
+  document.getElementById('tax-aliq').value = tax.aliquota || '';
+  refreshChips();
+
+  // campos por regime
+  // % aparece no Simples sempre; no PF só se o override manual estiver ligado
+  const showAliq = isSimples || (isPF && tax.pfManual);
+  document.getElementById('aliq-field').classList.toggle('hide', !showAliq);
+  document.getElementById('aliq-chips').classList.toggle('hide', !isSimples); // chips só Simples
+  document.getElementById('das-field').classList.toggle('hide', !isMEI);     // DAS só MEI
+  document.getElementById('tax-das').value = tax.dasMensal || '';
+
+  document.getElementById('pf-note').classList.toggle('hide', !isPF);
+  document.getElementById('pf-options').classList.toggle('hide', !isPF);
+  document.getElementById('tax-pf-iof').checked = tax.pfIof;
+  document.getElementById('tax-pf-manual').checked = tax.pfManual;
+  document.getElementById('mei-note').classList.toggle('hide', !isMEI);
+  document.getElementById('fatorr-field').classList.toggle('hide', !isSimples); // Fator R só Simples
+
+  document.getElementById('tax-fatorr').checked = tax.fatorR;
+  document.getElementById('folha-wrap').classList.toggle('hide', !tax.fatorR);
+  document.getElementById('tax-folha').value = tax.folhaPct;
+  document.getElementById('folha-out').textContent = (tax.folhaPct || 0) + '%';
+  const elig = (tax.folhaPct || 0) >= 28;
+  document.getElementById('fatorr-note').textContent = elig
+    ? `Folha ${tax.folhaPct}% ≥ 28% → Anexo III: alíquota ajustada automaticamente p/ ${ANEXO_III}%. Estimativa.`
+    : `Folha ${tax.folhaPct}% < 28% → Anexo V: alíquota ajustada automaticamente p/ ${ANEXO_V.toLocaleString('pt-BR')}%. Estimativa.`;
+}
+
+function toggleTaxOn(c) { tax.on = c; saveTax(); syncTaxUI(); update(); }
+function setRegime(r) { tax.regime = r; saveTax(); syncTaxUI(); update(); }
+function togglePfIof(c) { tax.pfIof = c; saveTax(); update(); }
+function togglePfManual(c) { tax.pfManual = c; saveTax(); syncTaxUI(); update(); }
+function setAliq(v) { tax.aliquota = (v === '' ? 0 : parseFloat(v) || 0); saveTax(); refreshChips(); update(); }
+function setAliqChip(v) { document.getElementById('tax-aliq').value = v; setAliq(v); }
+function setDas(v) { tax.dasMensal = (v === '' ? 0 : parseFloat(v) || 0); saveTax(); update(); }
+function setDasChip(v) { document.getElementById('tax-das').value = v; setDas(v); }
+// Fator R: define a alíquota automaticamente conforme a folha (≥28% Anexo III, senão Anexo V)
+function applyFatorR() {
+  if (!tax.fatorR) return;
+  tax.aliquota = (tax.folhaPct || 0) >= 28 ? ANEXO_III : ANEXO_V;
+}
+function toggleFatorR(c) { tax.fatorR = c; applyFatorR(); saveTax(); syncTaxUI(); update(); }
+function setFolha(v) { tax.folhaPct = parseFloat(v) || 0; applyFatorR(); saveTax(); syncTaxUI(); update(); }
+
+loadPrefs();
+loadTax();
+document.getElementById('amt').value = (prefs.amount != null ? prefs.amount : '');
+syncRateUI();
+syncTaxUI();
 update();
 fetchRate();
+setInterval(fetchRate, 60000);   // atualiza câmbio sozinho a cada 60s
 </script>
 </body>
 </html>
